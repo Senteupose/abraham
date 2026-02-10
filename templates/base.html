@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{TITLE}} | {{CANDIDATE_NAME}}</title>
+  <link rel="stylesheet" href="/public/styles.css" />
+  <script defer src="/public/js/main.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-row">
+      <a class="logo" href="/">{{CANDIDATE_NAME}}</a>
+      <nav>
+        <a href="/about">About</a>
+        <a href="/manifesto">Manifesto</a>
+        <a href="/updates">Updates</a>
+        <a href="/issues">Issues Desk</a>
+        <a href="/events">Events</a>
+        <a href="/media">Media</a>
+        <a href="/contact">Contact</a>
+        <a href="/accountability">Dashboard</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container content-wrap">
+    {{FLASH}}
+    {{CONTENT}}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p><strong>{{CANDIDATE_NAME}}</strong> · {{TAGLINE}}</p>
+      <p>This website is the official communication platform for Magadi Ward campaign engagement.</p>
+    </div>
+  </footer>
+</body>
+</html>

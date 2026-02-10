@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: abraham-senteu-magadi-platform
+    runtime: python
+    buildCommand: ""
+    startCommand: python3 app.py
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: CANDIDATE_NAME
+        value: Abraham Senteu
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: DB_PATH
+        value: /var/data/campaign.db
+    disk:
+      name: campaign-data
+      mountPath: /var/data
+      sizeGB: 1
