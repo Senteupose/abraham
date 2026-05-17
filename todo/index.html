@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List App - Local Storage</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="todo-app">
+            <div class="header">
+                <h1>📝 My Tasks</h1>
+                <p class="subtitle">Stay organized with local storage</p>
+            </div>
+
+            <div class="input-section">
+                <input
+                    type="text"
+                    id="todoInput"
+                    class="input-field"
+                    placeholder="Add a new task..."
+                    autocomplete="off"
+                />
+                <button id="addBtn" class="add-btn">+ Add Task</button>
+            </div>
+
+            <div class="filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="active">Active</button>
+                <button class="filter-btn" data-filter="completed">Completed</button>
+            </div>
+
+            <div class="stats">
+                <span class="stat-item">Total: <strong id="totalCount">0</strong></span>
+                <span class="stat-item">Active: <strong id="activeCount">0</strong></span>
+                <span class="stat-item">Completed: <strong id="completedCount">0</strong></span>
+            </div>
+
+            <ul id="todoList" class="todo-list"></ul>
+
+            <div class="actions">
+                <button id="clearCompletedBtn" class="action-btn clear-btn">Clear Completed</button>
+                <button id="clearAllBtn" class="action-btn delete-btn">Delete All Tasks</button>
+            </div>
+
+            <div class="empty-state" id="emptyState">
+                <p>✨ No tasks yet. Add one to get started!</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
