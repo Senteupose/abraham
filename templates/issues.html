@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Community Issues Desk</h1>
+<p>Submit a community issue and get a tracking reference.</p>
+<form class="form" method="post" action="/issues">
+  <input name="full_name" placeholder="Full Name (optional)">
+  <input name="phone" placeholder="Phone (optional)">
+  <input name="area" placeholder="Area / Village" required>
+  <select name="category" required>
+    <option value="">Select category</option>
+    <option>Water</option>
+    <option>Roads/Transport</option>
+    <option>Health</option>
+    <option>Education</option>
+    <option>Security</option>
+    <option>Youth/Women Opportunities</option>
+    <option>Environment</option>
+    <option>Other</option>
+  </select>
+  <select name="urgency">
+    <option>Normal</option>
+    <option>High</option>
+    <option>Critical</option>
+  </select>
+  <textarea name="message" placeholder="Describe the issue" required></textarea>
+  <button class="btn" type="submit">Submit Issue</button>
+</form>
+{% endblock %}

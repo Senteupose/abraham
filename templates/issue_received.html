@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<p class="success">Issue received. Reference: <strong>{{ reference }}</strong>.</p>
+<p>Track it here: <a href="/track/{{ reference }}">/track/{{ reference }}</a></p>
+{% endblock %}

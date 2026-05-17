@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Admin Issues</h1>
+<table>
+  <tr><th>Reference</th><th>Area</th><th>Category</th><th>Status</th></tr>
+  {% for r in issues %}
+    <tr>
+      <td>{{ r['reference'] }}</td>
+      <td>{{ r['area'] }}</td>
+      <td>{{ r['category'] }}</td>
+      <td>{{ r['status'] }}</td>
+    </tr>
+  {% endfor %}
+</table>
+{% endblock %}

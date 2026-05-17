@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Events &amp; Meetings</h1>
+<div class="grid">
+  {% for r in events %}
+    <article class="card">
+      <h3>{{ r['title'] }}</h3>
+      <p><strong>Venue:</strong> {{ r['venue'] }}</p>
+      <p><strong>Date:</strong> {{ r['event_date'] }}</p>
+      <p>{{ r['agenda'] }}</p>
+    </article>
+  {% endfor %}
+</div>
+{% endblock %}
