@@ -1,3 +1,5 @@
+"use client";
+
 import { Facebook, MessageCircle, Github, Linkedin, Youtube, Music2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 

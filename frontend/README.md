@@ -1,7 +1,7 @@
 # Abraham Pose Senteu — Campaign & Professional Platform
 
-Production-ready React + Vite + Tailwind + Lucide front-end for Abraham Pose Senteu's
-dual-purpose personal platform:
+Production-ready **Next.js 15 (App Router)** + Tailwind + lucide-react platform
+covering Abraham Pose Senteu's dual mandate:
 
 1. **Professional positioning** — FinTech Engineer, AI Developer, Pwani University CS,
    5+ years at Equity Bank Kenya (Best Equitel Onboarding Officer, Coast Region).
@@ -10,10 +10,12 @@ dual-purpose personal platform:
 
 ## Stack
 
-- Vite 5 · React 18 · TypeScript (strict)
+- Next.js 15 · React 19 · TypeScript (strict)
 - Tailwind CSS 3 with custom brand palette (canvas `#0F172A` + brand `#F59E0B`)
-- `lucide-react` icons (tree-shaken, vendor-chunked)
-- Zero runtime libraries beyond React + icons — bundle stays ultra-light for rural 3G
+- `lucide-react` icons (auto tree-shaken via `optimizePackageImports`)
+- Edge-runtime API Route Handlers for `/api/supporters` and `/api/donate/mpesa-stk`
+- Security headers (CSP-adjacent: X-Frame-Options DENY, X-Content-Type-Options
+  nosniff, strict referrer policy, locked-down Permissions-Policy)
 
 ## Run locally
 
@@ -23,17 +25,29 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:5173
+Then open http://localhost:3000
 
 ## Production build
 
 ```bash
 npm run build
-npm run preview
+npm run start
 ```
 
-The build emits to `frontend/dist/`. Vendor chunks (`react`, `lucide`) are split for
-long-term browser caching.
+Latest production build: **118 kB First Load JS** for `/` — fast enough for rural
+3G in Magadi Ward.
+
+## Deploy to Vercel
+
+Zero-config. Point Vercel at this repo and set the **Root Directory** to
+`frontend/` (Project Settings → General → Root Directory). Framework preset is
+auto-detected as Next.js. No `vercel.json` needed.
+
+If your Vercel project is currently failing with
+`FUNCTION_INVOCATION_FAILED` because Vercel tried to run the Flask `app.py` at
+the repo root, the fix is to point Root Directory at `frontend/`. The legacy
+Flask app should be deployed separately to a long-lived host (Render / Railway /
+Fly.io) where SQLite has persistent storage.
 
 ## Sections
 
@@ -44,18 +58,41 @@ long-term browser caching.
 4. **Excellence Matrix** — tabbed Software & AI vs. Magadi Ward Blueprint.
 5. **Supporter Registration** — animated counter, secure form, polling-centre dropdown.
 6. **IEBC Voter Portal** — verification CTA → https://iebc.or.ke + Form C download.
-7. **Darara FinTech Donation Portal** — preset amounts + M-Pesa STK push stub.
+7. **Darara FinTech Donation Portal** — preset amounts + M-Pesa STK push call.
 8. **Blog** — JSON-backed grid, single-article view, cross-post share matrix.
 9. **Vlog** — video thumbnail grid (YouTube / Reels / TikTok).
 10. **Footer** — executive references + location + copyright.
 
-## API endpoints (stubbed)
+## API endpoints
 
-The frontend POSTs to the following paths. Wire them up to your Flask/Node backend
-when ready — the UI degrades gracefully if the endpoint returns 404:
+Both routes run on the **Edge runtime** (fast cold-start, low cost) and ship
+input validation today. Persistence and Daraja v2 wiring are the next steps.
 
-- `POST /api/supporters` — `{ name, phone, village }`
-- `POST /api/donate/mpesa-stk` — `{ phone, amount }`
+### `POST /api/supporters`
+
+```json
+{ "name": "Naserian Lemayian", "phone": "0712345678", "village": "Shompole" }
+```
+
+- Rejects payloads > 4 KB.
+- Validates name regex, Kenyan phone (`07XX` / `01XX` / `+254`), and the polling
+  centre against a fixed allow-list.
+- Returns `{ ok: true, message, next }`. **Does not persist yet** — wire Vercel
+  KV, Supabase, or Postgres before going live.
+
+### `POST /api/donate/mpesa-stk`
+
+```json
+{ "phone": "0712345678", "amount": 500 }
+```
+
+- Rejects payloads > 1 KB.
+- Validates phone + amount (KES 10 – 1,000,000).
+- Normalises phone to MSISDN (`254XXXXXXXXX`) and returns a synthetic
+  `checkoutRequestId` plus a masked MSISDN echo. **Does not call Daraja yet** —
+  drop in `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY`,
+  `MPESA_SHORTCODE`, and call the Safaricom Daraja v2 STK push endpoint from
+  here.
 
 ## Required assets to drop in
 
@@ -88,9 +125,4 @@ them up automatically. Categories are typed (`Tech`, `Campaign Update`, `Oversig
 - Data Protection Act (Kenya, 2019) — Section 26 notice rendered with the supporter form.
 - Election Offences Act (2016) — footer banner.
 - All outbound social links use `rel="noopener noreferrer"`.
-
-## Deployment
-
-Static SPA — deploy `dist/` to Cloudflare Pages, Vercel, Netlify, or behind nginx.
-For the existing Flask backend in this repo, you can point Flask to serve `dist/`
-as the static root and expose `/api/*` routes for supporter capture and M-Pesa STK.
+- Strict security headers via `next.config.mjs`.

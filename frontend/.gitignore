@@ -1,9 +1,10 @@
 node_modules
-dist
-dist-ssr
-.vite
+.next
+out
+.vercel
 .DS_Store
 *.local
 *.log
 .env
 .env.*.local
+next-env.d.ts.bak

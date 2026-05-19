@@ -1,3 +1,5 @@
+"use client";
+
 import { ArrowRight, Code2, Sparkles, MapPin, Users } from "lucide-react";
 import { useTypingEffect } from "../hooks/useTypingEffect";
 

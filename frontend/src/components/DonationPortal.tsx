@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Heart, Phone, Loader2, CheckCircle2, Building2, BadgeCheck, Smartphone } from "lucide-react";

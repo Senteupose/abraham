@@ -1,3 +1,5 @@
+"use client";
+
 import { Play, Youtube, Clock, Radio } from "lucide-react";
 
 type Video = {

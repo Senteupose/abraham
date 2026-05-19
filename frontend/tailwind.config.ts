@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
@@ -20,8 +20,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ['"Inter"', '"Segoe UI"', "system-ui", "sans-serif"],
-        body: ['"Inter"', '"Segoe UI"', "system-ui", "sans-serif"],
+        display: ["var(--font-inter)", '"Segoe UI"', "system-ui", "sans-serif"],
+        body: ["var(--font-inter)", '"Segoe UI"', "system-ui", "sans-serif"],
       },
       boxShadow: {
         glow: "0 0 0 1px rgba(245,158,11,0.35), 0 12px 40px -12px rgba(245,158,11,0.45)",
