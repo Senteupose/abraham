@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<p class="{{ level|default('success') }}">{{ message }}</p>
+{% if back_href %}<p><a href="{{ back_href }}">Back</a></p>{% endif %}
+{% endblock %}

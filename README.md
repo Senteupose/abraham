@@ -23,10 +23,13 @@ A production-ready website for official campaign communication and public intera
 
 ## Run locally
 ```bash
-cp .env.example .env
+pip install -r requirements.txt
 python3 app.py
 ```
 Then open: `http://localhost:3000`
+
+`python3 app.py` uses the standard-library dev server (`wsgiref`) and is fine for local
+work. In production the Procfile runs the app under `waitress`.
 
 ## Deployment (public)
 
@@ -39,8 +42,9 @@ Then open: `http://localhost:3000`
 6. Set environment variables:
    - `PORT=10000` (or Render default)
    - `CANDIDATE_NAME=Your Name`
-   - `ADMIN_TOKEN=<strong-secret>`
+   - `ADMIN_TOKEN=<strong-secret>` (required — the app refuses to start in production with the default `change-me`)
    - `DB_PATH=/var/data/campaign.db`
+   - `ENV=production`
 7. Add a persistent disk mounted at `/var/data`.
 8. Point custom domain and enable HTTPS.
 

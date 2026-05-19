@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Official Contact</h1>
+<ul>
+  <li>Phone/WhatsApp: +254 XXX XXX XXX</li>
+  <li>Email: official@magadi2027.org</li>
+  <li>Office Hours: Mon-Sat, 8:00 AM - 5:00 PM</li>
+</ul>
+<h2>Subscribe for Updates</h2>
+<form class="form-inline" method="post" action="/subscribe">
+  <input type="email" name="email" required placeholder="you@example.com">
+  <button class="btn" type="submit">Subscribe</button>
+</form>
+{% endblock %}

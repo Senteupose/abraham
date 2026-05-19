@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>{{ candidate_name }} for MCA 2027, Magadi Ward</h1>
+  <p>Listening. Acting. Reporting back officially to the people of Magadi.</p>
+  <div class="cta-row">
+    <a class="btn" href="/issues">Submit a Community Issue</a>
+    <a class="btn btn-secondary" href="/updates">Read Official Updates</a>
+  </div>
+</section>
+
+<section>
+  <h2>Latest Official Updates</h2>
+  <div class="grid">
+    {% for u in updates %}
+      <article class="card">
+        <span class="tag">{{ u['category'] }}</span>
+        <h3>{{ u['title'] }}</h3>
+        <p>{{ u['body'] }}</p>
+        <small>{{ u['location'] }} &middot; {{ u['status'] }}</small>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section>
+  <h2>Upcoming Events</h2>
+  <div class="grid">
+    {% for e in events %}
+      <article class="card">
+        <h3>{{ e['title'] }}</h3>
+        <p><strong>Venue:</strong> {{ e['venue'] }}</p>
+        <p><strong>Date:</strong> {{ e['event_date'] }}</p>
+        <p>{{ e['agenda'] }}</p>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

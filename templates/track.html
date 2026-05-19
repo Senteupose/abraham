@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Issue Tracking</h1>
+{% if issue %}
+  <article class="card">
+    <h3>{{ issue['reference'] }}</h3>
+    <p><strong>Area:</strong> {{ issue['area'] }}</p>
+    <p><strong>Category:</strong> {{ issue['category'] }}</p>
+    <p><strong>Status:</strong> {{ issue['status'] }}</p>
+    <p>{{ issue['message'] }}</p>
+  </article>
+{% else %}
+  <p>No issue found for that reference.</p>
+{% endif %}
+{% endblock %}

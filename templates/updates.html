@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Official Updates</h1>
+<div class="grid">
+  {% for r in updates %}
+    <article class="card">
+      <span class="tag">{{ r['category'] }}</span>
+      <h3>{{ r['title'] }}</h3>
+      <p>{{ r['body'] }}</p>
+      <small>{{ r['created_at'] }} | {{ r['location'] }} | {{ r['status'] }}</small>
+    </article>
+  {% endfor %}
+</div>
+{% endblock %}

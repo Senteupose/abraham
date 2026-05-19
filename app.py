@@ -1,16 +1,56 @@
+import mimetypes
 import os
+import secrets
 import sqlite3
+import sys
+from datetime import datetime
 from urllib.parse import parse_qs
 from wsgiref.simple_server import make_server
-from datetime import datetime
+
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
+PUBLIC_DIR = os.path.realpath(os.path.join(BASE_DIR, 'public'))
+TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
 os.makedirs(DATA_DIR, exist_ok=True)
+
 DB_PATH = os.getenv('DB_PATH', os.path.join(DATA_DIR, 'campaign.db'))
 PORT = int(os.getenv('PORT', '3000'))
 CANDIDATE_NAME = os.getenv('CANDIDATE_NAME', '[Your Name]')
 ADMIN_TOKEN = os.getenv('ADMIN_TOKEN', 'change-me')
+ENV = os.getenv('ENV', 'development').lower()
+
+INSECURE_ADMIN_TOKENS = {'', 'change-me'}
+
+
+def check_startup_config():
+    if ADMIN_TOKEN in INSECURE_ADMIN_TOKENS:
+        if ENV == 'production':
+            raise SystemExit(
+                'Refusing to start: ADMIN_TOKEN is unset or default. '
+                "Set ADMIN_TOKEN to a strong secret when ENV=production."
+            )
+        print(
+            'WARNING: ADMIN_TOKEN is unset or the default placeholder. '
+            'Admin pages are effectively unprotected. Set ADMIN_TOKEN before deploying.',
+            file=sys.stderr,
+        )
+
+
+jinja_env = Environment(
+    loader=FileSystemLoader(TEMPLATES_DIR),
+    autoescape=select_autoescape(['html', 'xml']),
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
+
+
+def render(template_name, **context):
+    context.setdefault('candidate_name', CANDIDATE_NAME)
+    context.setdefault('title', 'Magadi 2027')
+    template = jinja_env.get_template(template_name)
+    return template.render(**context).encode('utf-8')
 
 
 def db_conn():
@@ -80,26 +120,6 @@ def init_db():
     conn.close()
 
 
-def nav():
-    return '''
-    <header class="site-header"><div class="container nav-wrap">
-      <a class="logo" href="/">Magadi 2027</a>
-      <nav>
-        <a href="/about">About</a><a href="/manifesto">Manifesto</a><a href="/updates">Updates</a>
-        <a href="/issues">Issues Desk</a><a href="/events">Events</a><a href="/media">Media</a>
-        <a href="/contact">Contact</a><a href="/accountability">Accountability</a>
-      </nav>
-    </div></header>
-    '''
-
-
-def layout(title, body):
-    return f'''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{title}</title><link rel="stylesheet" href="/public/styles.css"></head><body>{nav()}<main class="container">{body}</main>
-    <footer class="site-footer"><div class="container"><p>Official platform for {CANDIDATE_NAME} | MCA 2027 Magadi Ward.</p></div></footer>
-    </body></html>'''.encode('utf-8')
-
-
 def fetch_updates(limit=50):
     conn = db_conn()
     rows = conn.execute('SELECT * FROM updates ORDER BY datetime(created_at) DESC LIMIT ?', (limit,)).fetchall()
@@ -115,17 +135,43 @@ def fetch_events(limit=20):
 
 
 def generate_reference():
-    return f"MGD-2027-{datetime.now().strftime('%f%S')}"
+    return f"MGD-2027-{secrets.token_hex(6).upper()}"
 
 
-def parse_post(environ):
+def parse_post(environ, max_bytes=16 * 1024):
     try:
-      size = int(environ.get('CONTENT_LENGTH', '0'))
+        size = int(environ.get('CONTENT_LENGTH', '0'))
     except ValueError:
-      size = 0
-    body = environ['wsgi.input'].read(size).decode('utf-8')
+        size = 0
+    size = max(0, min(size, max_bytes))
+    body = environ['wsgi.input'].read(size).decode('utf-8', errors='replace')
     fields = parse_qs(body)
     return {k: v[0] for k, v in fields.items()}
+
+
+def serve_static(path, start_response):
+    rel = path[len('/public/'):]
+    if not rel:
+        start_response('404 Not Found', [('Content-Type', 'text/plain')])
+        return [b'Not found']
+
+    candidate = os.path.realpath(os.path.join(PUBLIC_DIR, rel))
+    if os.path.commonpath([candidate, PUBLIC_DIR]) != PUBLIC_DIR or not os.path.isfile(candidate):
+        start_response('404 Not Found', [('Content-Type', 'text/plain')])
+        return [b'Not found']
+
+    ctype, _ = mimetypes.guess_type(candidate)
+    if not ctype:
+        ctype = 'application/octet-stream'
+    with open(candidate, 'rb') as f:
+        data = f.read()
+    start_response('200 OK', [('Content-Type', ctype), ('X-Content-Type-Options', 'nosniff')])
+    return [data]
+
+
+def html_response(start_response, status, body):
+    start_response(status, [('Content-Type', 'text/html; charset=utf-8')])
+    return [body]
 
 
 def app(environ, start_response):
@@ -133,133 +179,127 @@ def app(environ, start_response):
     method = environ.get('REQUEST_METHOD', 'GET')
 
     if path.startswith('/public/'):
-        file_path = os.path.join(BASE_DIR, path.lstrip('/'))
-        if os.path.exists(file_path):
-            start_response('200 OK', [('Content-Type', 'text/css; charset=utf-8')])
-            with open(file_path, 'rb') as f:
-                return [f.read()]
-        start_response('404 Not Found', [('Content-Type', 'text/plain')])
-        return [b'Not found']
+        return serve_static(path, start_response)
 
     if path == '/' and method == 'GET':
-        updates = fetch_updates(3)
-        events = fetch_events(3)
-        body = f'''
-        <section class="hero"><h1>{CANDIDATE_NAME} for MCA 2027, Magadi Ward</h1>
-        <p>Listening. Acting. Reporting back officially to the people of Magadi.</p>
-        <div class="cta-row"><a class="btn" href="/issues">Submit a Community Issue</a><a class="btn btn-secondary" href="/updates">Read Official Updates</a></div></section>
-        <section><h2>Latest Official Updates</h2><div class="grid">{''.join([f"<article class='card'><span class='tag'>{u['category']}</span><h3>{u['title']}</h3><p>{u['body']}</p><small>{u['location']} · {u['status']}</small></article>" for u in updates])}</div></section>
-        <section><h2>Upcoming Events</h2><div class="grid">{''.join([f"<article class='card'><h3>{e['title']}</h3><p><strong>Venue:</strong> {e['venue']}</p><p><strong>Date:</strong> {e['event_date']}</p><p>{e['agenda']}</p></article>" for e in events])}</div></section>
-        '''
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [layout('Official Platform | MCA 2027 Magadi Ward', body)]
+        return html_response(start_response, '200 OK', render(
+            'home.html',
+            title='Official Platform | MCA 2027 Magadi Ward',
+            updates=fetch_updates(3),
+            events=fetch_events(3),
+        ))
 
     simple_pages = {
-        '/about': '<h1>About</h1><p>This is the official profile page for campaign leadership, values, and why I am running for MCA in Magadi Ward.</p>',
-        '/manifesto': '<h1>Manifesto</h1><ul><li>Water Access</li><li>Roads & Transport</li><li>Youth Jobs</li><li>Health & Education</li><li>Women Empowerment</li><li>Governance & Transparency</li></ul>',
-        '/media': '<h1>Media Center</h1><p>Upload campaign photos, short video updates, and press mentions.</p>',
-        '/accountability': '<h1>Transparency Dashboard</h1><p>Promises made, actions completed, in progress, and delayed reasons should be published monthly.</p>',
+        '/about': ('about.html', 'About | Magadi 2027'),
+        '/manifesto': ('manifesto.html', 'Manifesto | Magadi 2027'),
+        '/media': ('media.html', 'Media | Magadi 2027'),
+        '/accountability': ('accountability.html', 'Accountability | Magadi 2027'),
     }
-
     if path in simple_pages and method == 'GET':
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [layout('Magadi 2027', simple_pages[path])]
+        tpl, title = simple_pages[path]
+        return html_response(start_response, '200 OK', render(tpl, title=title))
 
     if path == '/updates' and method == 'GET':
-        rows = fetch_updates(50)
-        cards = []
-        for r in rows:
-            cards.append(f"<article class='card'><span class='tag'>{r['category']}</span><h3>{r['title']}</h3><p>{r['body']}</p><small>{r['created_at']} | {r['location']} | {r['status']}</small></article>")
-        body = "<h1>Official Updates</h1><div class='grid'>" + ''.join(cards) + "</div>"
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [layout('Official Updates', body)]
+        return html_response(start_response, '200 OK', render(
+            'updates.html', title='Official Updates', updates=fetch_updates(50),
+        ))
 
     if path == '/events' and method == 'GET':
-        rows = fetch_events(20)
-        cards = []
-        for r in rows:
-            cards.append(f"<article class='card'><h3>{r['title']}</h3><p><strong>Venue:</strong> {r['venue']}</p><p><strong>Date:</strong> {r['event_date']}</p><p>{r['agenda']}</p></article>")
-        body = "<h1>Events & Meetings</h1><div class='grid'>" + ''.join(cards) + "</div>"
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [layout('Events', body)]
+        return html_response(start_response, '200 OK', render(
+            'events.html', title='Events', events=fetch_events(20),
+        ))
 
     if path == '/issues' and method == 'GET':
-        body = '''<h1>Community Issues Desk</h1><p>Submit a community issue and get a tracking reference.</p>
-        <form class="form" method="post" action="/issues">
-        <input name="full_name" placeholder="Full Name (optional)"><input name="phone" placeholder="Phone (optional)">
-        <input name="area" placeholder="Area / Village" required>
-        <select name="category" required><option value="">Select category</option><option>Water</option><option>Roads/Transport</option><option>Health</option><option>Education</option><option>Security</option><option>Youth/Women Opportunities</option><option>Environment</option><option>Other</option></select>
-        <select name="urgency"><option>Normal</option><option>High</option><option>Critical</option></select>
-        <textarea name="message" placeholder="Describe the issue" required></textarea>
-        <button class="btn" type="submit">Submit Issue</button></form>'''
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [layout('Issues Desk', body)]
+        return html_response(start_response, '200 OK', render(
+            'issues.html', title='Issues Desk',
+        ))
 
     if path == '/issues' and method == 'POST':
         fields = parse_post(environ)
         if not fields.get('area') or not fields.get('category') or not fields.get('message'):
-            start_response('400 Bad Request', [('Content-Type', 'text/html; charset=utf-8')])
-            return [layout('Invalid submission', '<p class="error">Area, category and message are required.</p><p><a href="/issues">Back</a></p>')]
+            return html_response(start_response, '400 Bad Request', render(
+                'message.html',
+                title='Invalid submission',
+                level='error',
+                message='Area, category and message are required.',
+                back_href='/issues',
+            ))
 
         ref = generate_reference()
         conn = db_conn()
-        conn.execute('INSERT INTO issues (reference, full_name, phone, area, category, urgency, message) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                     (ref, fields.get('full_name'), fields.get('phone'), fields['area'], fields['category'], fields.get('urgency', 'Normal'), fields['message']))
+        conn.execute(
+            'INSERT INTO issues (reference, full_name, phone, area, category, urgency, message) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (ref, fields.get('full_name'), fields.get('phone'), fields['area'], fields['category'],
+             fields.get('urgency', 'Normal'), fields['message']),
+        )
         conn.commit()
         conn.close()
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [layout('Issue Received', f'<p class="success">Issue received. Reference: <strong>{ref}</strong>.</p><p>Track it here: <a href="/track/{ref}">/track/{ref}</a></p>')]
+        return html_response(start_response, '200 OK', render(
+            'issue_received.html', title='Issue Received', reference=ref,
+        ))
 
     if path.startswith('/track/') and method == 'GET':
         ref = path.split('/track/', 1)[1]
         conn = db_conn()
         row = conn.execute('SELECT * FROM issues WHERE reference = ?', (ref,)).fetchone()
         conn.close()
-        if row:
-            body = f"<h1>Issue Tracking</h1><article class='card'><h3>{row['reference']}</h3><p><strong>Area:</strong> {row['area']}</p><p><strong>Category:</strong> {row['category']}</p><p><strong>Status:</strong> {row['status']}</p><p>{row['message']}</p></article>"
-        else:
-            body = '<h1>Issue Tracking</h1><p>No issue found for that reference.</p>'
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [layout('Track Issue', body)]
+        return html_response(start_response, '200 OK', render(
+            'track.html', title='Track Issue', issue=row,
+        ))
 
     if path == '/contact' and method == 'GET':
-        body = '''<h1>Official Contact</h1><ul><li>Phone/WhatsApp: +254 XXX XXX XXX</li><li>Email: official@magadi2027.org</li><li>Office Hours: Mon-Sat, 8:00 AM - 5:00 PM</li></ul>
-        <h2>Subscribe for Updates</h2><form class="form-inline" method="post" action="/subscribe"><input type="email" name="email" required placeholder="you@example.com"><button class="btn" type="submit">Subscribe</button></form>'''
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [layout('Contact', body)]
+        return html_response(start_response, '200 OK', render(
+            'contact.html', title='Contact',
+        ))
 
     if path == '/subscribe' and method == 'POST':
         fields = parse_post(environ)
         email = fields.get('email', '').strip()
         if not email or '@' not in email:
-            start_response('400 Bad Request', [('Content-Type', 'text/html; charset=utf-8')])
-            return [layout('Contact', '<p class="error">Please provide a valid email.</p><p><a href="/contact">Back</a></p>')]
+            return html_response(start_response, '400 Bad Request', render(
+                'message.html',
+                title='Contact',
+                level='error',
+                message='Please provide a valid email.',
+                back_href='/contact',
+            ))
         conn = db_conn()
         conn.execute('INSERT OR IGNORE INTO subscribers (email) VALUES (?)', (email,))
         conn.commit()
         conn.close()
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [layout('Contact', '<p class="success">Subscribed successfully.</p><p><a href="/contact">Back</a></p>')]
+        return html_response(start_response, '200 OK', render(
+            'message.html',
+            title='Contact',
+            level='success',
+            message='Subscribed successfully.',
+            back_href='/contact',
+        ))
 
     if path == '/admin/issues' and method == 'GET':
         query = parse_qs(environ.get('QUERY_STRING', ''))
         token = query.get('token', [''])[0]
-        if token != ADMIN_TOKEN:
+        if not secrets.compare_digest(token, ADMIN_TOKEN):
             start_response('401 Unauthorized', [('Content-Type', 'text/plain; charset=utf-8')])
             return [b'Unauthorized']
         conn = db_conn()
         rows = conn.execute('SELECT * FROM issues ORDER BY datetime(created_at) DESC').fetchall()
         conn.close()
-        body = '<h1>Admin Issues</h1><table><tr><th>Reference</th><th>Area</th><th>Category</th><th>Status</th></tr>' + ''.join([f"<tr><td>{r['reference']}</td><td>{r['area']}</td><td>{r['category']}</td><td>{r['status']}</td></tr>" for r in rows]) + '</table>'
-        start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])
-        return [layout('Admin Issues', body)]
+        return html_response(start_response, '200 OK', render(
+            'admin_issues.html', title='Admin Issues', issues=rows,
+        ))
 
-    start_response('404 Not Found', [('Content-Type', 'text/html; charset=utf-8')])
-    return [layout('Not Found', '<h1>404</h1><p>Page not found.</p>')]
+    try:
+        body = render('not_found.html', title='Not Found')
+    except TemplateNotFound:
+        body = b'Not found'
+    return html_response(start_response, '404 Not Found', body)
+
+
+check_startup_config()
+init_db()
 
 
 if __name__ == '__main__':
-    init_db()
     httpd = make_server('0.0.0.0', PORT, app)
     print(f'Server running on http://localhost:{PORT}')
     httpd.serve_forever()
